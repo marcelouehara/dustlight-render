@@ -32,12 +32,12 @@ def duration(path):
     return float(out.strip())
 
 
-async def tts(text, path):
+async def tts_voz(text, path, voz):
     words = []
     try:  # edge-tts >= 7.1 precisa pedir WordBoundary explicitamente (antes era o padrao)
-        com = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
+        com = edge_tts.Communicate(text, voz, rate=rate, boundary="WordBoundary")
     except TypeError:
-        com = edge_tts.Communicate(text, voice, rate=rate)
+        com = edge_tts.Communicate(text, voz, rate=rate)
     with open(path, "wb") as f:
         async for ch in com.stream():
             if ch["type"] == "audio":
@@ -45,6 +45,20 @@ async def tts(text, path):
             elif ch["type"] == "WordBoundary":
                 words.append((ch["offset"] / 1e7, (ch["offset"] + ch["duration"]) / 1e7, ch["text"]))
     return words
+
+
+async def tts(text, path):
+    """Tenta a voz pedida e depois vozes reserva; o servico as vezes devolve 'No audio received'."""
+    erro = None
+    for voz in [voice, "en-US-GuyNeural", "en-US-ChristopherNeural"]:
+        for tentativa in range(3):
+            try:
+                return await tts_voz(text, path, voz)
+            except edge_tts.exceptions.NoAudioReceived as e:
+                erro = e
+                print(f"sem audio: voz={voz} tentativa={tentativa + 1}", flush=True)
+                await asyncio.sleep(2)
+    raise erro
 
 
 def ass_time(t):
