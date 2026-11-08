@@ -34,7 +34,10 @@ def duration(path):
 
 async def tts(text, path):
     words = []
-    com = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
+    try:  # edge-tts >= 7.1 precisa pedir WordBoundary explicitamente (antes era o padrao)
+        com = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
+    except TypeError:
+        com = edge_tts.Communicate(text, voice, rate=rate)
     with open(path, "wb") as f:
         async for ch in com.stream():
             if ch["type"] == "audio":
