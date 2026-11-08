@@ -1,0 +1,47 @@
+name: render
+
+on:
+  repository_dispatch:
+    types: [render]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core > /dev/null
+          pip install -q edge-tts==7.0.2
+
+      - name: Renderizar
+        env:
+          JOB: ${{ toJson(github.event.client_payload) }}
+        run: python3 render.py
+
+      # Branch "videos" sem historico: guarda so os 5 videos mais recentes (o Buffer baixa logo apos publicar)
+      - name: Publicar no branch videos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/pub
+          if git fetch -q origin videos; then git archive FETCH_HEAD | tar -x -C /tmp/pub; fi
+          cp out/* /tmp/pub/
+          cd /tmp/pub
+          ls *.mp4 | sort | head -n -5 | sed 's/\.mp4$//' | while read id; do rm -f "$id.mp4" "$id.json"; done
+          git init -q -b videos
+          git config user.name "dustlight-render"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -q -m "videos $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" videos
