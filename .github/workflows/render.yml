@@ -39,11 +39,12 @@ jobs:
           fi
           ffmpeg -version | head -1
           fc-list | grep -qi dejavu || echo "aviso: fonte DejaVu ausente"
-          for i in 1 2 3; do timeout 300 pip install -q --retries 5 --timeout 30 edge-tts && break; sleep 15; done
+          for i in 1 2 3; do timeout 300 pip install -q --retries 5 --timeout 30 edge-tts faster-whisper && break; sleep 15; done
 
       - name: Renderizar
         env:
           JOB: ${{ toJson(github.event.client_payload) }}
+          FISH_API_KEY: ${{ secrets.FISH_API_KEY }}
         run: python3 render.py
 
       # Branch "videos" sem historico: guarda so os 5 videos mais recentes (o Buffer baixa logo apos publicar)
